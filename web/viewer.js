@@ -1,3 +1,27 @@
+// ---------------------------------------------------------
+// SECURITY LOCK: Only allow access inside an iframe (LibGuides)
+// ---------------------------------------------------------
+try {
+    if (window.self === window.top) {
+        // The user tried to open this in a new tab (Direct Access)
+        document.body.innerHTML = `
+            <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#f0f0f0;font-family:sans-serif;text-align:center;">
+                <div>
+                    <h1>Access Denied</h1>
+                    <p>This document can only be viewed through the Library website.</p>
+                </div>
+            </div>
+        `;
+        // Stop the rest of the viewer from loading
+        throw new Error("Direct access blocked. Viewer must be embedded.");
+    }
+} catch (e) {
+    // Kill the script
+    window.stop();
+    throw e;
+}
+// ---------------------------------------------------------
+
 /**
  * @licstart The following is the entire license notice for the
  * JavaScript code in this page
