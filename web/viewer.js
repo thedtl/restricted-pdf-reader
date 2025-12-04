@@ -1,51 +1,60 @@
 // ---------------------------------------------------------
-// SECURITY PATCH: Inject Real Referrer (Robust Version)
+// SECURITY PATCH: Strict Referrer Check (Anti-Copy/Paste)
 // ---------------------------------------------------------
 (function() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         let fileParam = urlParams.get('file');
 
-        // Check if we are using the worker AND if we are missing the 'ref' tag
-        if (fileParam && fileParam.includes("workers.dev") && !fileParam.includes("&ref=")) {
+        if (fileParam && fileParam.includes("workers.dev")) {
             
-            let ref = "";
-
-            // A. Try standard Referrer
+            // 1. Get the ACTUAL browser referrer (Who sent you?)
+            let browserRef = "";
             if (document.referrer) {
-                ref = document.referrer;
-            } 
-            // B. Try Ancestor Origins (Chrome/Safari fallback for iframes)
-            else if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
-                ref = window.location.ancestorOrigins[window.location.ancestorOrigins.length - 1];
+                try { browserRef = new URL(document.referrer).hostname; } catch(e) {}
+            } else if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+                try { browserRef = new URL(window.location.ancestorOrigins[0]).hostname; } catch(e) {}
             }
-
-            // C. Clean up the domain
-            if (ref) {
-                try { ref = new URL(ref).hostname; } catch(e) { ref = "direct"; }
-            } else {
-                ref = "direct";
-            }
-
-            // 2. Append ref to the inner worker URL
-            const newFileParam = fileParam + "&ref=" + ref;
-
-            // 3. Update the main URL parameter
-            urlParams.set('file', newFileParam);
-            const newUrl = window.location.pathname + '?' + urlParams.toString() + window.location.hash;
-
-            // 4. FORCE RELOAD
-            window.location.replace(newUrl);
             
-            // 5. KILL SWITCH
-            throw new Error("Security Redirect: Reloading with ID card...");
+            // 2. Check what the URL *claims* the referrer is (The ID Card)
+            let urlClaimedRef = "";
+            const refMatch = fileParam.match(/&ref=([^&]*)/);
+            if (refMatch) {
+                urlClaimedRef = refMatch[1];
+            }
+
+            // 3. THE LIE DETECTOR
+            // If the URL has a valid ID card (e.g. thedtl.org) 
+            // BUT the browser says you came from nowhere (Direct/Empty)...
+            // Then you copied and pasted the link. BLOCKED.
+            if (urlClaimedRef && urlClaimedRef !== "direct" && !browserRef) {
+                
+                // Punishment: Overwrite the ID card with "direct"
+                const newFileParam = fileParam.replace(`&ref=${urlClaimedRef}`, "&ref=direct");
+                
+                urlParams.set('file', newFileParam);
+                const newUrl = window.location.pathname + '?' + urlParams.toString() + window.location.hash;
+                
+                // Force Reload to trigger the block
+                window.location.replace(newUrl);
+                throw new Error("Security Redirect: Detected copied link.");
+            }
+
+            // 4. STANDARD INJECTION (For legitimate first loads)
+            // If there is no ID card yet, create one based on the browser referrer
+            if (!fileParam.includes("&ref=")) {
+                let ref = browserRef || "direct";
+                const newFileParam = fileParam + "&ref=" + ref;
+                urlParams.set('file', newFileParam);
+                const newUrl = window.location.pathname + '?' + urlParams.toString() + window.location.hash;
+                
+                window.location.replace(newUrl);
+                throw new Error("Security Redirect: Injecting ID card...");
+            }
         }
     } catch (e) { 
-        if (e.message !== "Security Redirect: Reloading with ID card...") {
-            console.error("Security Patch Error", e);
-        } else {
-            throw e;
-        }
+        if (!e.message.includes("Security Redirect")) console.error(e);
+        else throw e;
     }
 })();
 // ---------------------------------------------------------
