@@ -1,3 +1,38 @@
+// ---------------------------------------------------------
+// SECURITY PATCH: Inject Real Referrer
+// ---------------------------------------------------------
+(function() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        let file = params.get('file');
+        
+        // Only run if we are using the worker
+        if (file && file.includes("workers.dev")) {
+            
+            // 1. Get the real referrer (e.g. "https://thedtl.org")
+            // If you pasted the link in a tab, this will be empty ("")
+            let ref = document.referrer;
+            
+            // 2. If empty, mark as 'direct' (which will be blocked)
+            if (!ref) ref = "direct";
+            
+            // 3. Clean it to just the domain
+            try { ref = new URL(ref).hostname; } catch(e) { ref = "direct"; }
+
+            // 4. Force update the 'ref' parameter in the file URL
+            // This overwrites any fake ref a user might try to type in manually
+            const fileUrl = new URL(file);
+            fileUrl.searchParams.set("ref", ref);
+            
+            // 5. Update the browser state so PDF.js uses this new URL
+            params.set('file', fileUrl.toString());
+            const newUrl = window.location.pathname + '?' + params.toString() + window.location.hash;
+            window.history.replaceState({}, '', newUrl);
+        }
+    } catch (e) { console.log("Security Patch Error", e); }
+})();
+// ---------------------------------------------------------
+
 /**
  * @licstart The following is the entire license notice for the
  * JavaScript code in this page
