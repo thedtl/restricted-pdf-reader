@@ -470,18 +470,37 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-    <!-- LIBRARY 20% RESTRICTION SCRIPT (FIXED) -->
+    
+<!-- LIBRARY 20% RESTRICTION SCRIPT (FINAL FIX) -->
     <script type="text/javascript">
       // ---------------------------------------------------------
-      // 1. FIX BLANK PAGES: CONFIGURE WORKER PATH
+      // 1. CONFIGURATION: WORKER & CMAPS (THE BLANK PAGE FIX)
       // ---------------------------------------------------------
-      // This tells PDF.js where to find the renderer.
       if (window.pdfjsLib) {
+          // Point to the worker
           window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.js';
+          
+          // --- CRITICAL FIX FOR BLANK PAGES ---
+          // Microsoft Word PDFs need CMaps to render text correctly.
+          window.pdfjsLib.GlobalWorkerOptions.cMapUrl = 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/';
+          window.pdfjsLib.GlobalWorkerOptions.cMapPacked = true;
       }
 
       // ---------------------------------------------------------
-      // 2. APPLY 20% PAGE RESTRICTION
+      // 2. CONFIGURE VIEWER OPTIONS (DISABLE RANGE REQUESTS)
+      // ---------------------------------------------------------
+      // This forces the browser to download the whole file at once,
+      // preventing "chunking" errors with Dropbox/Cloudflare.
+      document.addEventListener("webviewerloaded", function() {
+          const options = window.PDFViewerApplicationOptions;
+          if (options) {
+              options.set('disableRange', true);
+              options.set('disableStream', true);
+          }
+      });
+
+      // ---------------------------------------------------------
+      // 3. APPLY 20% PAGE RESTRICTION
       // ---------------------------------------------------------
       function initRestriction() {
           console.log("[Restriction] Initializing...");
@@ -489,7 +508,6 @@ limitations under the License.
           
           if (!app) return;
 
-          // Wait for the PDF viewer to fully load
           const initPromise = app.initializedPromise || Promise.resolve();
 
           initPromise.then(function() {
@@ -497,26 +515,24 @@ limitations under the License.
               
               let pageLimit = null;
 
-              // Listen for the document to be ready
               app.eventBus.on("pagesinit", function() {
                   const totalRealPages = app.pdfDocument.numPages;
                   
-                  // Calculate 20% limit (minimum 1 page)
+                  // Calculate 20% limit
                   pageLimit = Math.ceil(totalRealPages * 0.20);
                   if (pageLimit < 1) pageLimit = 1;
                   
                   console.log(`[Restriction] Limit set to ${pageLimit} of ${totalRealPages}`);
 
-                  // A. Update the "1 of X" label in the toolbar
+                  // Update UI
                   app.pagesCount = pageLimit;
                   const numPagesLabel = document.getElementById('numPages');
                   if (numPagesLabel) numPagesLabel.textContent = 'of ' + pageLimit;
                   
-                  // B. Restrict the page number input box
                   const pageNumberInput = document.getElementById('pageNumber');
                   if (pageNumberInput) pageNumberInput.max = pageLimit;
 
-                  // C. CSS HACK: Hide all pages physically after the limit
+                  // CSS Hide pages beyond limit
                   const style = document.createElement('style');
                   style.innerHTML = `
                       .page[data-page-number="${pageLimit}"] ~ .page,
@@ -527,7 +543,7 @@ limitations under the License.
                   document.head.appendChild(style);
               });
 
-              // D. Scroll Guard: Bounce user back if they try to go past limit
+              // Scroll Guard
               app.eventBus.on("pagechanging", function(evt) {
                   if (pageLimit !== null && evt.pageNumber > pageLimit) {
                       setTimeout(() => {
@@ -538,14 +554,13 @@ limitations under the License.
           });
       }
 
-      // ---------------------------------------------------------
-      // 3. INITIALIZATION SAFETY CHECK
-      // ---------------------------------------------------------
       if (document.readyState === 'interactive' || document.readyState === 'complete') {
           initRestriction();
       } else {
           document.addEventListener("webviewerloaded", initRestriction, { once: true });
       }
     </script>
+
+  
   </body>
 </html>
