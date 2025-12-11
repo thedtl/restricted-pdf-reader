@@ -3,7 +3,6 @@
 // ---------------------------------------------------------
 (function() {
     try {
-        // 1. CONFIGURATION: Who is allowed to open this?
         const ALLOWED_HOSTS = [
             "thedtl.org", 
             "oclc.org", 
@@ -12,22 +11,19 @@
             "springshare.com", 
             "localhost"
         ];
-
-        // 2. GET REFERRER
-        let referrer = document.referrer || "";
-        if (!referrer && window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
-            referrer = window.location.ancestorOrigins[window.location.ancestorOrigins.length - 1];
-        }
         
-        // 3. CHECK
+        // Only use document.referrer (ancestorOrigins causes cross-origin errors)
+        let referrer = document.referrer || "";
+        
         const isAllowed = ALLOWED_HOSTS.some(host => referrer.includes(host));
-
-        // 4. BLOCKING LOGIC
-        if (!isAllowed) {
-            const refDisplay = referrer || 'Hidden / Direct Link';
+        
+        // Also allow direct access from the same origin (for testing)
+        const isSameOrigin = !referrer || referrer.includes(window.location.hostname);
+        
+        if (!isAllowed && !isSameOrigin) {
+            const refDisplay = referrer || 'Direct Link';
             
-            // Create the error page HTML
-            const errorHtml = `
+            document.documentElement.innerHTML = `
                 <head>
                     <title>Access Denied</title>
                     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -40,21 +36,14 @@
                     </div>
                 </body>
             `;
-
-            // FORCE REPLACE THE ENTIRE PAGE
-            // This wipes out the PDF viewer HTML immediately
-            document.documentElement.innerHTML = errorHtml;
-            
-            // Stop network requests (kills the PDF download)
             window.stop();
-            
-            // Kill JavaScript execution
             throw new Error("Access Denied: Invalid Referrer"); 
         }
     } catch (e) {
         if (e.message.includes("Access Denied")) {
             throw e;
         }
+        // Silently ignore other errors (like cross-origin issues)
     }
 })();
 // ---------------------------------------------------------
