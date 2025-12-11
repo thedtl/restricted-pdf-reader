@@ -1,7 +1,18 @@
 <!DOCTYPE html>
 <!--
 Copyright 2012 Mozilla Foundation
-Licensed under the Apache License, Version 2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 -->
 <html dir="ltr" mozdisallowselectionprint>
   <head>
@@ -10,43 +21,35 @@ Licensed under the Apache License, Version 2.0
     <meta name="google" content="notranslate">
     <title>PDF.js viewer</title>
 
+    <!-- This snippet is used in production (included from viewer.html) -->
     <link rel="resource" type="application/l10n" href="locale/locale.properties">
     
-    <!-- 1. LOAD PDF.JS FROM CDN (Guarantees correct version) -->
-    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-
+    <!-- YOUR WORKING CONFIGURATION -->
+    <script src="../build/pdf.js"></script>
     <link rel="stylesheet" href="viewer.css">
     <script src="viewer.js"></script>
 
-    <!-- 2. FORCE CONFIGURATION (The "Blank Page" Fix) -->
-    <script>
-      // We use the event listener to set options BEFORE the viewer initializes
-      document.addEventListener("webviewerloaded", function() {
-          const options = window.PDFViewerApplicationOptions;
-          
-          if (options) {
-              console.log("[Config] Forcing CDN Worker and CMaps...");
-              
-              // Force the Worker to the CDN (Matches the library version above)
-              options.set('workerSrc', 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js');
-              
-              // Force CMaps to CDN (Fixes invisible text/blank pages)
-              options.set('cMapUrl', 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/');
-              options.set('cMapPacked', true);
-              
-              // Disable Range Requests (Fixes Cloudflare/Dropbox chunking issues)
-              options.set('disableRange', true);
-              options.set('disableStream', true);
-          }
-      });
-    </script>
-
-    <!-- LIBRARY CSS RESTRICTIONS -->
+    <!-- RESTRICTION CSS: Hides buttons and sidebars -->
     <style>
+      /* Hide Sidebar Toggle */
       #sidebarToggle, #viewThumbnail, #sidebarContainer { display: none !important; }
-      #download, #secondaryDownload, #print, #secondaryPrint, 
-      #openFile, #secondaryOpenFile, #editorModeButtons, #editorModeSeparator { display: none !important; }
-      #lastPage, #documentProperties, #presentationMode { display: none !important; }
+      
+      /* Hide download/print/open/editor buttons */
+      #download, #secondaryDownload, 
+      #print, #secondaryPrint, 
+      #openFile, #secondaryOpenFile,
+      #editorModeButtons, #editorModeSeparator { display: none !important; }
+
+      /* Hide "Go to Last Page" */
+      #lastPage { display: none !important; }
+
+      /* Hide Document Properties */
+      #documentProperties { display: none !important; }
+
+      /* Hide Presentation Mode */
+      #presentationMode { display: none !important; }
+
+      /* Hide the bookmark/current page link */
       #viewBookmark, #viewBookmarkSeparator { display: none !important; }
     </style>
   </head>
@@ -466,10 +469,10 @@ Licensed under the Apache License, Version 2.0
 
     <input type="file" id="fileInput" class="hidden">
 
-    <!-- LIBRARY 20% RESTRICTION SCRIPT (LOGIC ONLY) -->
+    <!-- RESTRICTION SCRIPT (CLEAN VERSION) -->
+    <!-- This only adds the restriction logic. It does NOT touch the worker path. -->
     <script type="text/javascript">
-      function initRestriction() {
-          console.log("[Restriction] Initializing...");
+      document.addEventListener("webviewerloaded", function() {
           const app = window.PDFViewerApplication;
           
           if (!app) return;
@@ -518,13 +521,7 @@ Licensed under the Apache License, Version 2.0
                   }
               });
           });
-      }
-
-      if (document.readyState === 'interactive' || document.readyState === 'complete') {
-          initRestriction();
-      } else {
-          document.addEventListener("webviewerloaded", initRestriction, { once: true });
-      }
+      });
     </script>
   </body>
 </html>
