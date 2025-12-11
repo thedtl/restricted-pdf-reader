@@ -538,10 +538,8 @@ See https://github.com/adobe-type-tools/cmap-resources
           initPromise.then(function() {
               console.log("[PDF Restriction] App initialized");
               
-              let pageLimit = null; // Start as null until we know the real limit
-              let restrictionActive = false;
+              let pageLimit = null;
               
-              // Check if eventBus exists
               if (!app.eventBus) {
                   console.error("[PDF Restriction] eventBus not found!");
                   return;
@@ -553,11 +551,10 @@ See https://github.com/adobe-type-tools/cmap-resources
                   const totalRealPages = app.pdfDocument.numPages;
                   pageLimit = Math.ceil(totalRealPages * 0.20);
                   if (pageLimit < 1) pageLimit = 1;
-                  restrictionActive = true;
                   
                   console.log(`[PDF Restriction] Total pages: ${totalRealPages}, Limit: ${pageLimit}`);
 
-                  // Update page count display immediately
+                  // Update page count display
                   app.pagesCount = pageLimit;
                   const numPagesLabel = document.getElementById('numPages');
                   if (numPagesLabel) {
@@ -569,41 +566,16 @@ See https://github.com/adobe-type-tools/cmap-resources
                       pageNumberInput.max = pageLimit;
                   }
 
-                  // NOW set up the Visual Blocker (after we know the real limit)
-                  const viewerContainer = document.getElementById('viewer');
-                  if (viewerContainer) {
-                      // Hide any pages already rendered that exceed limit
-                      const existingPages = viewerContainer.querySelectorAll('.page');
-                      existingPages.forEach(function(node) {
-                          const pageNum = parseInt(node.getAttribute('data-page-number'));
-                          if (pageNum > pageLimit) {
-                              console.log(`[PDF Restriction] Hiding existing page ${pageNum}`);
-                              node.style.display = 'none';
-                              node.style.visibility = 'hidden';
-                              node.innerHTML = "";
-                          }
-                      });
-
-                      // Watch for new pages being added
-                      const observer = new MutationObserver((mutations) => {
-                          if (!restrictionActive || pageLimit === null) return;
-                          
-                          mutations.forEach((mutation) => {
-                              mutation.addedNodes.forEach((node) => {
-                                  if (node.nodeType === 1 && node.classList.contains('page')) {
-                                      const pageNum = parseInt(node.getAttribute('data-page-number'));
-                                      if (pageNum > pageLimit) {
-                                          console.log(`[PDF Restriction] Hiding new page ${pageNum}`);
-                                          node.style.display = 'none';
-                                          node.style.visibility = 'hidden';
-                                          node.innerHTML = ""; 
-                                      }
-                                  }
-                              });
-                          });
-                      });
-                      observer.observe(viewerContainer, { childList: true, subtree: true });
-                  }
+                  // Add CSS rule to hide pages beyond the limit
+                  const style = document.createElement('style');
+                  style.textContent = `
+                      .page[data-page-number="${pageLimit}"] ~ .page {
+                          display: none !important;
+                          visibility: hidden !important;
+                      }
+                  `;
+                  document.head.appendChild(style);
+                  console.log("[PDF Restriction] CSS rule added to hide pages beyond limit");
               });
               
               app.eventBus.on("pagesloaded", function() {
@@ -619,7 +591,7 @@ See https://github.com/adobe-type-tools/cmap-resources
                   }
               });
 
-              // Scroll Guard
+              // Scroll Guard - prevent navigation beyond limit
               app.eventBus.on("pagechanging", function(evt) {
                   if (pageLimit !== null && evt.pageNumber > pageLimit) {
                       console.log(`[PDF Restriction] Blocked navigation to page ${evt.pageNumber}`);
