@@ -27,13 +27,48 @@ See https://github.com/adobe-type-tools/cmap-resources
     <meta name="google" content="notranslate">
     <title>PDF.js viewer</title>
 
-<!-- This snippet is used in production (included from viewer.html) -->
-<link rel="resource" type="application/l10n" href="locale/locale.properties">
-<script src="../build/pdf.js"></script>
-
+    <!-- This snippet is used in production (included from viewer.html) -->
+    <link rel="resource" type="application/l10n" href="locale/locale.properties">
+    <script src="../build/pdf.js"></script>
     <link rel="stylesheet" href="viewer.css">
+    <script src="viewer.js"></script>
 
-  <script src="viewer.js"></script>
+    <!-- LIBRARY CSS RESTRICTIONS -->
+    <style>
+      /* Hide Sidebar Toggle to prevent users seeing thumbnails of restricted pages */
+      #sidebarToggle, #viewThumbnail, #sidebarContainer {
+          display: none !important; 
+      }
+      
+      /* Hide download/print/open/editor buttons */
+      #download, #secondaryDownload, 
+      #print, #secondaryPrint, 
+      #openFile, #secondaryOpenFile,
+      #editorModeButtons, #editorModeSeparator {
+          display: none !important;
+      }
+
+      /* Hide "Go to Last Page" - reveals true page count */
+      #lastPage {
+          display: none !important;
+      }
+
+      /* Hide Document Properties - reveals true page count */
+      #documentProperties {
+          display: none !important;
+      }
+
+      /* Hide Presentation Mode - can bypass some restrictions */
+      #presentationMode {
+          display: none !important;
+      }
+
+      /* Hide the bookmark/current page link - can reveal page info */
+      #viewBookmark, #viewBookmarkSeparator {
+          display: none !important;
+      }
+    </style>
+
   </head>
 
   <body tabindex="1">
@@ -273,7 +308,6 @@ See https://github.com/adobe-type-tools/cmap-resources
                   <span data-l10n-id="open_file_label">Open</span>
                 </button>
 
-                <!-- I FIXED THIS LINE FOR YOU: -->
                 <button id="print" hidden class="toolbarButton hiddenMediumView" title="Print" tabindex="32" data-l10n-id="print">
                   <span data-l10n-id="print_label">Print</span>
                 </button>
@@ -427,7 +461,7 @@ See https://github.com/adobe-type-tools/cmap-resources
             <div id="overallDescription">
               <span id="dialogLabel" data-l10n-id="editor_alt_text_dialog_label" class="title">Choose an option</span>
               <span id="dialogDescription" data-l10n-id="editor_alt_text_dialog_description">
-                Alt text (alternative text) helps when people can’t see the image or when it doesn’t load.
+                Alt text (alternative text) helps when people can't see the image or when it doesn't load.
               </span>
             </div>
             <div id="addDescription">
@@ -443,7 +477,7 @@ See https://github.com/adobe-type-tools/cmap-resources
                 </div>
               </div>
               <div class="descriptionArea">
-                <textarea id="descriptionTextarea" placeholder="For example, “A young man sits down at a table to eat a meal”" aria-labelledby="descriptionAreaLabel" data-l10n-id="editor_alt_text_textarea" tabindex="0"></textarea>
+                <textarea id="descriptionTextarea" placeholder="For example, "A young man sits down at a table to eat a meal"" aria-labelledby="descriptionAreaLabel" data-l10n-id="editor_alt_text_textarea" tabindex="0"></textarea>
               </div>
             </div>
             <div id="markAsDecorative">
@@ -483,5 +517,150 @@ See https://github.com/adobe-type-tools/cmap-resources
     <div id="printContainer"></div>
 
     <input type="file" id="fileInput" class="hidden">
+
+    <!-- LIBRARY 20% RESTRICTION SCRIPT (HARDENED) -->
+    <script type="text/javascript">
+      document.addEventListener("webviewerloaded", function() {
+          const app = window.PDFViewerApplication;
+          let pageLimit = 1; // Will be set once PDF loads
+
+          // Wait until the PDF structure is read and pages are ready
+          app.eventBus.on("pagesinit", function() {
+              // 1. Calculate the Limit
+              const totalRealPages = app.pdfDocument.numPages;
+              pageLimit = Math.ceil(totalRealPages * 0.20); // 20% calculation
+
+              // 2. Override the "Total Pages" display - use pagesloaded for reliability
+              app.eventBus.on("pagesloaded", function() {
+                  app.pagesCount = pageLimit;
+                  const numPagesLabel = document.getElementById('numPages');
+                  if (numPagesLabel) {
+                      numPagesLabel.textContent = 'of ' + pageLimit;
+                  }
+                  
+                  // Also set the max attribute on the page number input
+                  const pageNumberInput = document.getElementById('pageNumber');
+                  if (pageNumberInput) {
+                      pageNumberInput.max = pageLimit;
+                  }
+              });
+
+              // 3. The Scroll Guard (Prevents navigation via scrolling/buttons)
+              app.eventBus.on("pagechanging", function(evt) {
+                  if (evt.pageNumber > pageLimit) {
+                      setTimeout(() => {
+                          app.page = pageLimit;
+                      }, 0);
+                  }
+              });
+
+              // 4. Block Direct Page Number Input
+              const pageNumberInput = document.getElementById('pageNumber');
+              if (pageNumberInput) {
+                  // Block typing beyond limit
+                  pageNumberInput.addEventListener('input', function(e) {
+                      const val = parseInt(this.value);
+                      if (val > pageLimit) {
+                          this.value = pageLimit;
+                      }
+                  });
+                  
+                  // Block change event (Enter key, blur)
+                  pageNumberInput.addEventListener('change', function(e) {
+                      const val = parseInt(this.value);
+                      if (val > pageLimit) {
+                          this.value = pageLimit;
+                          app.page = pageLimit;
+                      }
+                  });
+                  
+                  // Block beforeinput for extra safety
+                  pageNumberInput.addEventListener('beforeinput', function(e) {
+                      // Allow the input, but we'll catch it in 'input' event
+                  });
+              }
+
+              // 5. Block Keyboard Shortcuts (Ctrl+End, etc.)
+              document.addEventListener('keydown', function(e) {
+                  // Block Ctrl+End (go to end of document)
+                  if (e.ctrlKey && e.key === 'End') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      app.page = pageLimit;
+                      return false;
+                  }
+                  
+                  // Block Ctrl+Shift+End
+                  if (e.ctrlKey && e.shiftKey && e.key === 'End') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return false;
+                  }
+                  
+                  // Block Alt+Ctrl+G (Go to page dialog in some versions)
+                  if (e.altKey && e.ctrlKey && e.key.toLowerCase() === 'g') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return false;
+                  }
+              }, true); // Use capture phase
+
+              // 6. Block "Next" button at limit
+              const nextButton = document.getElementById('next');
+              if (nextButton) {
+                  const originalClick = nextButton.onclick;
+                  nextButton.addEventListener('click', function(e) {
+                      if (app.page >= pageLimit) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          return false;
+                      }
+                  }, true);
+              }
+
+              // 7. The Visual Blocker (Hides elements from the DOM)
+              const viewerContainer = document.getElementById('viewer');
+              if (viewerContainer) {
+                  const observer = new MutationObserver((mutations) => {
+                      mutations.forEach((mutation) => {
+                          mutation.addedNodes.forEach((node) => {
+                              if (node.nodeType === 1 && node.classList.contains('page')) {
+                                  const pageNum = parseInt(node.getAttribute('data-page-number'));
+                                  if (pageNum > pageLimit) {
+                                      node.style.display = 'none';
+                                      node.style.visibility = 'hidden';
+                                      node.innerHTML = ""; 
+                                  }
+                              }
+                          });
+                      });
+                  });
+                  observer.observe(viewerContainer, { childList: true, subtree: true });
+              }
+
+              // 8. Override the internal page setter as an extra safeguard
+              const originalPageSetter = Object.getOwnPropertyDescriptor(
+                  Object.getPrototypeOf(app), 'page'
+              )?.set;
+              
+              if (originalPageSetter) {
+                  Object.defineProperty(app, 'page', {
+                      get: function() {
+                          return app.pdfViewer?.currentPageNumber || 1;
+                      },
+                      set: function(val) {
+                          if (val > pageLimit) {
+                              val = pageLimit;
+                          }
+                          if (originalPageSetter) {
+                              originalPageSetter.call(app, val);
+                          }
+                      },
+                      configurable: true
+                  });
+              }
+          });
+      });
+    </script>
   </body>
 </html>
