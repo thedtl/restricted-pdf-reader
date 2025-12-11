@@ -21,36 +21,33 @@ limitations under the License.
     <meta name="google" content="notranslate">
     <title>PDF.js viewer</title>
 
-    <!-- This snippet is used in production (included from viewer.html) -->
     <link rel="resource" type="application/l10n" href="locale/locale.properties">
     
     <!-- 1. LOAD PDF.JS LIBRARY -->
     <script src="../build/pdf.js"></script>
-    
+
+    <!-- 2. CRITICAL FIX: CONFIGURE WORKER & CMAPS FROM CDN -->
+    <!-- We do this HERE to ensure it overrides any broken local files -->
+    <script>
+      if (window.pdfjsLib) {
+          // Fix 1: Use the official CDN worker (Your local one is 0.3kB/Broken)
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+          
+          // Fix 2: Use CDN for CMaps (Fixes blank pages in Word docs)
+          window.pdfjsLib.GlobalWorkerOptions.cMapUrl = 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/';
+          window.pdfjsLib.GlobalWorkerOptions.cMapPacked = true;
+      }
+    </script>
+
     <link rel="stylesheet" href="viewer.css">
     <script src="viewer.js"></script>
 
     <!-- LIBRARY CSS RESTRICTIONS -->
     <style>
-      /* Hide Sidebar Toggle */
       #sidebarToggle, #viewThumbnail, #sidebarContainer { display: none !important; }
-      
-      /* Hide download/print/open/editor buttons */
-      #download, #secondaryDownload, 
-      #print, #secondaryPrint, 
-      #openFile, #secondaryOpenFile,
-      #editorModeButtons, #editorModeSeparator { display: none !important; }
-
-      /* Hide "Go to Last Page" */
-      #lastPage { display: none !important; }
-
-      /* Hide Document Properties */
-      #documentProperties { display: none !important; }
-
-      /* Hide Presentation Mode */
-      #presentationMode { display: none !important; }
-
-      /* Hide the bookmark/current page link */
+      #download, #secondaryDownload, #print, #secondaryPrint, 
+      #openFile, #secondaryOpenFile, #editorModeButtons, #editorModeSeparator { display: none !important; }
+      #lastPage, #documentProperties, #presentationMode { display: none !important; }
       #viewBookmark, #viewBookmarkSeparator { display: none !important; }
     </style>
   </head>
@@ -470,38 +467,8 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-    
-<!-- LIBRARY 20% RESTRICTION SCRIPT (FINAL FIX) -->
+    <!-- LIBRARY 20% RESTRICTION SCRIPT (LOGIC ONLY) -->
     <script type="text/javascript">
-      // ---------------------------------------------------------
-      // 1. CONFIGURATION: WORKER & CMAPS (THE BLANK PAGE FIX)
-      // ---------------------------------------------------------
-      if (window.pdfjsLib) {
-          // Point to the worker
-          window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.js';
-          
-          // --- CRITICAL FIX FOR BLANK PAGES ---
-          // Microsoft Word PDFs need CMaps to render text correctly.
-          window.pdfjsLib.GlobalWorkerOptions.cMapUrl = 'https://unpkg.com/pdfjs-dist@3.11.174/cmaps/';
-          window.pdfjsLib.GlobalWorkerOptions.cMapPacked = true;
-      }
-
-      // ---------------------------------------------------------
-      // 2. CONFIGURE VIEWER OPTIONS (DISABLE RANGE REQUESTS)
-      // ---------------------------------------------------------
-      // This forces the browser to download the whole file at once,
-      // preventing "chunking" errors with Dropbox/Cloudflare.
-      document.addEventListener("webviewerloaded", function() {
-          const options = window.PDFViewerApplicationOptions;
-          if (options) {
-              options.set('disableRange', true);
-              options.set('disableStream', true);
-          }
-      });
-
-      // ---------------------------------------------------------
-      // 3. APPLY 20% PAGE RESTRICTION
-      // ---------------------------------------------------------
       function initRestriction() {
           console.log("[Restriction] Initializing...");
           const app = window.PDFViewerApplication;
@@ -560,7 +527,5 @@ limitations under the License.
           document.addEventListener("webviewerloaded", initRestriction, { once: true });
       }
     </script>
-
-  
   </body>
 </html>
