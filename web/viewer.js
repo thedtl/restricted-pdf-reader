@@ -4,7 +4,8 @@
 (function() {
     try {
         const ALLOWED_HOSTS = [
-            "thedtl.org", 
+            "thedtl.org",
+            "thedtl.github.io",
             "oclc.org", 
             "libapps.com", 
             "libguides.com", 
@@ -12,16 +13,15 @@
             "localhost"
         ];
         
-        // Only use document.referrer (ancestorOrigins causes cross-origin errors)
         let referrer = document.referrer || "";
+        if (!referrer && window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+            referrer = window.location.ancestorOrigins[window.location.ancestorOrigins.length - 1];
+        }
         
         const isAllowed = ALLOWED_HOSTS.some(host => referrer.includes(host));
         
-        // Also allow direct access from the same origin (for testing)
-        const isSameOrigin = !referrer || referrer.includes(window.location.hostname);
-        
-        if (!isAllowed && !isSameOrigin) {
-            const refDisplay = referrer || 'Direct Link';
+        if (!isAllowed) {
+            const refDisplay = referrer || 'Hidden / Direct Link';
             
             document.documentElement.innerHTML = `
                 <head>
@@ -43,7 +43,6 @@
         if (e.message.includes("Access Denied")) {
             throw e;
         }
-        // Silently ignore other errors (like cross-origin issues)
     }
 })();
 // ---------------------------------------------------------
