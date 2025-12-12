@@ -469,7 +469,7 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-<!-- RESTRICTION SCRIPT - EXPLICIT CSS HIDING -->
+<!-- RESTRICTION SCRIPT - WORKING VERSION -->
 <script type="text/javascript">
   document.addEventListener("webviewerloaded", function () {
     const app = window.PDFViewerApplication;
@@ -478,10 +478,9 @@ limitations under the License.
     const initPromise = app.initializedPromise || Promise.resolve();
     initPromise.then(function () {
       let pageLimit = null;
-      let totalPages = null;
       
       app.eventBus.on("pagesinit", function () {
-        totalPages = app.pdfDocument.numPages;
+        const totalPages = app.pdfDocument.numPages;
         pageLimit = Math.ceil(totalPages * 0.20);
         if (pageLimit < 1) pageLimit = 1;
         
@@ -498,18 +497,6 @@ limitations under the License.
         if (pageNumberInput) {
           pageNumberInput.max = pageLimit;
         }
-        
-        // Build CSS rules for each page beyond the limit
-        let cssRules = "";
-        for (let i = pageLimit + 1; i <= totalPages; i++) {
-          cssRules += `.page[data-page-number="${i}"] { display: none !important; }\n`;
-        }
-        
-        const style = document.createElement("style");
-        style.textContent = cssRules;
-        document.head.appendChild(style);
-        
-        console.log("[Restriction] CSS rules added for pages", pageLimit + 1, "to", totalPages);
       });
       
       // Block navigation past limit
