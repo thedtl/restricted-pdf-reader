@@ -469,8 +469,7 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-    <!-- RESTRICTION SCRIPT (CLEAN VERSION) -->
-    <!-- This only adds the restriction logic. It does NOT touch the worker path. -->
+    <!-- RESTRICTION SCRIPT (SAFE VERSION) -->
     <script type="text/javascript">
       document.addEventListener("webviewerloaded", function() {
           const app = window.PDFViewerApplication;
@@ -493,15 +492,15 @@ limitations under the License.
                   
                   console.log(`[Restriction] Limit set to ${pageLimit} of ${totalRealPages}`);
 
-                  // Update UI
-                  app.pagesCount = pageLimit;
+                  // 1. Update the UI Label (Visual Only)
                   const numPagesLabel = document.getElementById('numPages');
                   if (numPagesLabel) numPagesLabel.textContent = 'of ' + pageLimit;
                   
+                  // 2. Restrict the Input Box
                   const pageNumberInput = document.getElementById('pageNumber');
                   if (pageNumberInput) pageNumberInput.max = pageLimit;
 
-                  // CSS Hide pages beyond limit
+                  // 3. Hide Pages via CSS (Safe Method)
                   const style = document.createElement('style');
                   style.innerHTML = `
                       .page[data-page-number="${pageLimit}"] ~ .page,
@@ -510,9 +509,11 @@ limitations under the License.
                       }
                   `;
                   document.head.appendChild(style);
+                  
+                  // NOTE: We REMOVED 'app.pagesCount = pageLimit' because it breaks the renderer.
               });
 
-              // Scroll Guard
+              // 4. Scroll Guard
               app.eventBus.on("pagechanging", function(evt) {
                   if (pageLimit !== null && evt.pageNumber > pageLimit) {
                       setTimeout(() => {
