@@ -469,6 +469,46 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
+<!-- SECURITY: Referrer check to block direct access -->
+<script>
+(function() {
+  const ALLOWED_HOSTS = [
+    "thedtl.org",
+    "oclc.org",
+    "libapps.com",
+    "libguides.com",
+    "springshare.com",
+    "localhost",
+    "127.0.0.1"
+  ];
+  
+  const referrer = document.referrer;
+  
+  // If no referrer (direct access) or referrer not from allowed host, block
+  if (!referrer) {
+    document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;"><h1>Access Denied</h1><p>This viewer must be accessed through an authorized library portal.</p></div>';
+    throw new Error("Direct access blocked - no referrer");
+  }
+  
+  try {
+    const referrerHost = new URL(referrer).hostname;
+    const isAllowed = ALLOWED_HOSTS.some(function(host) {
+      return referrerHost === host || referrerHost.endsWith("." + host);
+    });
+    
+    if (!isAllowed) {
+      document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;"><h1>Access Denied</h1><p>This viewer must be accessed through an authorized library portal.</p></div>';
+      throw new Error("Direct access blocked - unauthorized referrer: " + referrerHost);
+    }
+  } catch (e) {
+    if (e.message.includes("Direct access blocked")) throw e;
+    // URL parsing failed, block access
+    document.body.innerHTML = '<div style="font-family: sans-serif; text-align: center; padding: 50px;"><h1>Access Denied</h1><p>This viewer must be accessed through an authorized library portal.</p></div>';
+    throw new Error("Direct access blocked - invalid referrer");
+  }
+})();
+</script>
+
 <!-- RESTRICTION SCRIPT - WORKING VERSION -->
 <script>
   document.addEventListener("webviewerloaded", function () {
