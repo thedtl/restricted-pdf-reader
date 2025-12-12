@@ -3526,3 +3526,32 @@ dialog :link {
     display: none;
   }
 }
+
+.dtlPreviewEnd {
+  margin: 12px auto 24px auto;
+}
+
+.dtlPreviewEnd__card {
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  font: 13px/1.4 sans-serif;
+}
+
+.dtlPreviewEnd__title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.dtlPreviewEnd__text {
+  margin-bottom: 10px;
+}
+
+.dtlPreviewEnd__link {
+  display: inline-block;
+  text-decoration: none;
+  font-weight: 600;
+}
