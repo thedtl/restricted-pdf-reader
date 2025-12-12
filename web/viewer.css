@@ -3527,31 +3527,37 @@ dialog :link {
   }
 }
 
-.dtlPreviewEnd {
-  margin: 12px auto 24px auto;
+/* ===== Preview restriction card UI ===== */
+#dtlPreviewEnd {
+  margin: 24px auto;
+  max-width: 720px;
+  padding: 0;
 }
 
 .dtlPreviewEnd__card {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(0, 0, 0, 0.14);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 14px;
+  padding: 24px 32px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-  font: 13px/1.4 sans-serif;
+  text-align: center;
+  font-family: sans-serif;
 }
 
 .dtlPreviewEnd__title {
-  font-size: 14px;
+  font-size: 32px;      /* bigger main title */
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 
 .dtlPreviewEnd__text {
-  margin-bottom: 10px;
+  font-size: 20px;      /* larger body text */
+  margin-bottom: 16px;
 }
 
 .dtlPreviewEnd__link {
-  display: inline-block;
+  font-size: 22px;      /* bigger link */
+  font-weight: 700;
+  color: #0060df;
   text-decoration: none;
-  font-weight: 600;
 }
