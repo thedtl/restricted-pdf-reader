@@ -469,7 +469,7 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-<!-- MINIMAL RESTRICTION TEST -->
+<!-- RESTRICTION SCRIPT - WITH NAVIGATION BLOCKING -->
 <script type="text/javascript">
   document.addEventListener("webviewerloaded", function () {
     const app = window.PDFViewerApplication;
@@ -477,16 +477,34 @@ limitations under the License.
     
     const initPromise = app.initializedPromise || Promise.resolve();
     initPromise.then(function () {
+      let pageLimit = null;
+      
       app.eventBus.on("pagesinit", function () {
         const totalPages = app.pdfDocument.numPages;
-        const pageLimit = Math.ceil(totalPages * 0.20);
+        pageLimit = Math.ceil(totalPages * 0.20);
+        if (pageLimit < 1) pageLimit = 1;
         
         console.log("[Restriction] Total:", totalPages, "Limit:", pageLimit);
         
-        // Just update the page count display - nothing else
+        // Update the page count display
         const numPagesLabel = document.getElementById("numPages");
         if (numPagesLabel) {
           numPagesLabel.textContent = "of " + pageLimit;
+        }
+        
+        // Restrict page input max
+        const pageNumberInput = document.getElementById("pageNumber");
+        if (pageNumberInput) {
+          pageNumberInput.max = pageLimit;
+        }
+      });
+      
+      // Block navigation past limit
+      app.eventBus.on("pagechanging", function (evt) {
+        if (pageLimit !== null && evt.pageNumber > pageLimit) {
+          setTimeout(function() {
+            app.page = pageLimit;
+          }, 0);
         }
       });
     });
