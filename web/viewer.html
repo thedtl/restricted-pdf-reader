@@ -469,7 +469,7 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-<!-- RESTRICTION SCRIPT (SUPER SAFE VERSION) -->
+<!-- RESTRICTION SCRIPT (PAGERENDERED VERSION) -->
 <script type="text/javascript">
   document.addEventListener("webviewerloaded", function () {
     const app = window.PDFViewerApplication;
@@ -485,59 +485,66 @@ limitations under the License.
 
       let pageLimit = null;
 
-      // When pages are initialized
+      // 1. When the pages are initialized, compute the 20% limit and update the UI.
       app.eventBus.on("pagesinit", function () {
         try {
           const pdfDoc = app.pdfDocument;
-          const viewer = app.pdfViewer;
-
           if (!pdfDoc) {
             console.warn("[Restriction] pdfDocument is not available at pagesinit");
             return;
           }
-          if (!viewer) {
-            console.warn("[Restriction] pdfViewer is not available");
-            return;
-          }
 
           const totalRealPages = pdfDoc.numPages;
-          const totalViewerPages = viewer.pagesCount;
 
-          // 20% limit
+          // Calculate 20% (ceiling) and make sure it's at least 1.
           pageLimit = Math.ceil(totalRealPages * 0.20);
           if (pageLimit < 1) pageLimit = 1;
 
-          console.log(
-            `[Restriction] Limit set to ${pageLimit} of ${totalRealPages} (viewer pages: ${totalViewerPages})`
-          );
+          console.log(`[Restriction] Limit set to ${pageLimit} of ${totalRealPages}`);
 
-          // 1. Update visible "of N" label only
+          // Update the "of N" label (purely visual).
           const numPagesLabel = document.getElementById("numPages");
           if (numPagesLabel) {
             numPagesLabel.textContent = "of " + pageLimit;
           }
 
-          // 2. Limit the page number input
+          // Restrict the page number input so users can't jump past the limit.
           const pageNumberInput = document.getElementById("pageNumber");
           if (pageNumberInput) {
             pageNumberInput.max = pageLimit;
-          }
-
-          // 3. Hide all pages after pageLimit
-          // viewer.pagesCount is 1-based count, but getPageView uses 0-based index
-          for (let index = pageLimit; index < totalViewerPages; index++) {
-            const pageView = viewer.getPageView(index); // index 0 = page 1
-            if (pageView && pageView.div) {
-              pageView.div.style.display = "none";
-              pageView.div.classList.add("restricted-page");
-            }
           }
         } catch (err) {
           console.error("[Restriction] Error in pagesinit handler:", err);
         }
       });
 
-      // 4. Prevent navigation beyond pageLimit
+      // 2. As each page finishes rendering, hide it if it's beyond the limit.
+      app.eventBus.on("pagerendered", function (evt) {
+        try {
+          if (!pageLimit) {
+            return;
+          }
+
+          const pageNumber = evt.pageNumber; // 1-based
+          if (pageNumber <= pageLimit) {
+            return; // allowed pages, do nothing
+          }
+
+          // evt.source is the PDFPageView instance; it has a .div
+          const pageView = evt.source;
+          const pageDiv =
+            (pageView && pageView.div) ||
+            document.querySelector('.page[data-page-number="' + pageNumber + '"]');
+
+          if (pageDiv) {
+            pageDiv.style.display = "none";
+          }
+        } catch (err) {
+          console.error("[Restriction] Error in pagerendered handler:", err);
+        }
+      });
+
+      // 3. Guard against navigation beyond the limit.
       app.eventBus.on("pagechanging", function (evt) {
         if (pageLimit !== null && evt.pageNumber > pageLimit) {
           app.page = pageLimit;
@@ -546,6 +553,7 @@ limitations under the License.
     });
   });
 </script>
+
       
   </body>
 </html>
