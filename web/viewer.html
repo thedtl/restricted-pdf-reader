@@ -469,7 +469,7 @@ limitations under the License.
 
     <input type="file" id="fileInput" class="hidden">
 
-<!-- RESTRICTION SCRIPT - WITH CSS HIDING -->
+<!-- RESTRICTION SCRIPT - DELAYED CSS HIDING -->
 <script type="text/javascript">
   document.addEventListener("webviewerloaded", function () {
     const app = window.PDFViewerApplication;
@@ -497,8 +497,14 @@ limitations under the License.
         if (pageNumberInput) {
           pageNumberInput.max = pageLimit;
         }
+      });
+      
+      // Wait for pages to be fully loaded before hiding
+      app.eventBus.on("pagesloaded", function () {
+        if (pageLimit === null) return;
         
-        // Add CSS to hide pages beyond limit
+        console.log("[Restriction] Pages loaded, applying CSS hide for pages after", pageLimit);
+        
         const style = document.createElement("style");
         style.textContent = `.page[data-page-number="${pageLimit}"] ~ .page { display: none !important; }`;
         document.head.appendChild(style);
