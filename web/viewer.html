@@ -470,42 +470,144 @@ limitations under the License.
     <input type="file" id="fileInput" class="hidden">
 
 <!-- RESTRICTION SCRIPT - WORKING VERSION -->
-<script type="text/javascript">
+<script>
   document.addEventListener("webviewerloaded", function () {
     const app = window.PDFViewerApplication;
     if (!app) return;
-    
-    const initPromise = app.initializedPromise || Promise.resolve();
-    initPromise.then(function () {
-      let pageLimit = null;
-      
+
+    app.initializedPromise.then(function () {
+      const PREVIEW_FRACTION = 0.20;
+      const END_ID = "dtlPreviewEnd";
+
+      let pageLimit = 1;
+      let maxScrollTop = null;
+
+      function getContainer() {
+        return document.getElementById("viewerContainer");
+      }
+
+      function ensureEndEl() {
+        let el = document.getElementById(END_ID);
+        if (el) return el;
+
+        el = document.createElement("div");
+        el.id = END_ID;
+        el.className = "dtlPreviewEnd";
+        el.innerHTML = `
+          <div class="dtlPreviewEnd__card" role="note" aria-live="polite">
+            <div class="dtlPreviewEnd__title">Preview ends here</div>
+            <div class="dtlPreviewEnd__text">
+              For full access, please contact DTL.
+            </div>
+            <a class="dtlPreviewEnd__link"
+               href="https://example.com/request-access"
+               target="_blank"
+               rel="noopener">
+              Request access
+            </a>
+          </div>
+        `;
+        return el;
+      }
+
+      function updateUi() {
+        const numPagesLabel = document.getElementById("numPages");
+        if (numPagesLabel) numPagesLabel.textContent = "of " + pageLimit;
+
+        const pageNumberInput = document.getElementById("pageNumber");
+        if (pageNumberInput) pageNumberInput.max = pageLimit;
+      }
+
+      function disableForwardNav(disabled) {
+        const next = document.getElementById("next");
+        if (next) next.disabled = disabled;
+
+        const last = document.getElementById("lastPage");
+        if (last) last.disabled = disabled;
+      }
+
+      function placeEndElAfterLastAllowedPage() {
+        const endEl = ensureEndEl();
+
+        const lastView = app.pdfViewer?.getPageView?.(pageLimit - 1);
+        const lastDiv = lastView?.div;
+        if (!lastDiv) return;
+
+        lastDiv.insertAdjacentElement("afterend", endEl);
+
+        const w = lastDiv.clientWidth;
+        if (w) endEl.style.width = w + "px";
+      }
+
+      function computeMaxScrollTop() {
+        const container = getContainer();
+        const endEl = document.getElementById(END_ID);
+        if (!container || !endEl) return;
+
+        const bottom = endEl.offsetTop + endEl.clientHeight;
+        maxScrollTop = Math.max(0, bottom - container.clientHeight);
+      }
+
+      function clampScroll() {
+        const container = getContainer();
+        if (!container || maxScrollTop === null) return;
+
+        if (container.scrollTop > maxScrollTop) {
+          container.scrollTop = maxScrollTop;
+        }
+      }
+
       app.eventBus.on("pagesinit", function () {
         const totalPages = app.pdfDocument.numPages;
-        pageLimit = Math.ceil(totalPages * 0.20);
-        if (pageLimit < 1) pageLimit = 1;
-        
-        console.log("[Restriction] Total:", totalPages, "Limit:", pageLimit);
-        
-        // Update the page count display
-        const numPagesLabel = document.getElementById("numPages");
-        if (numPagesLabel) {
-          numPagesLabel.textContent = "of " + pageLimit;
-        }
-        
-        // Restrict page input max
-        const pageNumberInput = document.getElementById("pageNumber");
-        if (pageNumberInput) {
-          pageNumberInput.max = pageLimit;
-        }
+        pageLimit = Math.max(1, Math.ceil(totalPages * PREVIEW_FRACTION));
+
+        console.log("[Preview] Total:", totalPages, "Limit:", pageLimit);
+
+        updateUi();
+        placeEndElAfterLastAllowedPage();
+        computeMaxScrollTop();
+        clampScroll();
+
+        disableForwardNav(app.page >= pageLimit);
       });
-      
-      // Block navigation past limit
+
+      app.eventBus.on("scalechanging", function () {
+        placeEndElAfterLastAllowedPage();
+        computeMaxScrollTop();
+        clampScroll();
+      });
+
+      window.addEventListener("resize", function () {
+        placeEndElAfterLastAllowedPage();
+        computeMaxScrollTop();
+        clampScroll();
+      });
+
+      const container = getContainer();
+      if (container) {
+        container.addEventListener("scroll", function () {
+          clampScroll();
+        });
+      }
+
       app.eventBus.on("pagechanging", function (evt) {
-        if (pageLimit !== null && evt.pageNumber > pageLimit) {
-          setTimeout(function() {
+        if (evt.pageNumber > pageLimit) {
+          setTimeout(function () {
             app.page = pageLimit;
+
+            placeEndElAfterLastAllowedPage();
+            computeMaxScrollTop();
+
+            const endEl = document.getElementById(END_ID);
+            if (endEl) endEl.scrollIntoView({ block: "start" });
+
+            clampScroll();
+            disableForwardNav(true);
           }, 0);
+          return;
         }
+
+        disableForwardNav(evt.pageNumber >= pageLimit);
       });
     });
   });
